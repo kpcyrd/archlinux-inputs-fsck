@@ -1,7 +1,8 @@
 use clap::{Parser, Subcommand};
+use std::path::PathBuf;
 
 #[derive(Debug, Parser)]
-pub struct Cli {
+pub struct Args {
     /// Optional name to operate on
     name: Option<String>,
 
@@ -12,18 +13,28 @@ pub struct Cli {
     */
     /// Turn debugging information on
     #[clap(short, long, parse(from_occurrences))]
-    verbose: usize,
+    pub verbose: usize,
 
     #[clap(subcommand)]
-    command: Option<SubCommand>,
+    pub subcommand: SubCommand,
 }
 
 #[derive(Debug, Subcommand)]
 pub enum SubCommand {
-    /// does testing things
-    Test {
-        /// lists test values
-        #[clap(short, long)]
-        list: bool,
+    Pkgs {
+        #[clap(subcommand)]
+        subcommand: Pkgs,
     },
+    Check {
+        pkgs: Vec<String>,
+        #[clap(short, long)]
+        all: bool,
+        #[clap(short = 'W', long)]
+        work_dir: Option<PathBuf>,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+pub enum Pkgs {
+    Ls {},
 }
