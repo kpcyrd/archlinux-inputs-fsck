@@ -12,7 +12,7 @@ pub struct Args {
     config: Option<PathBuf>,
     */
     /// Turn debugging information on
-    #[clap(short, long, global=true, parse(from_occurrences))]
+    #[clap(short, long, global = true, parse(from_occurrences))]
     pub verbose: usize,
 
     #[clap(subcommand)]

@@ -1,16 +1,9 @@
 use crate::errors::*;
-use lazy_static::lazy_static;
-use std::collections::HashSet;
 use std::path::Path;
 use std::process::Stdio;
 use tokio::process::Command;
 
 pub const SUPPORTED_ALGS: &[&str] = &["sha256sums", "sha512sums", "b2sums", "md5sums", "sha1sums"];
-
-lazy_static! {
-    pub static ref INSECURE_ALGS: HashSet<&'static str> =
-        ["md5sums", "sha1sums"].into_iter().collect();
-}
 
 #[derive(Debug, PartialEq)]
 pub enum Source {
@@ -19,6 +12,13 @@ pub enum Source {
 }
 
 impl Source {
+    pub fn filename(&self) -> Option<&str> {
+        match self {
+            Source::Url(_) => None,
+            Source::UrlWithFilename((_, filename)) => Some(filename),
+        }
+    }
+
     pub fn url(&self) -> &str {
         match self {
             Source::Url(url) => url,

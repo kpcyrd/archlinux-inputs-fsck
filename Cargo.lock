@@ -24,7 +24,6 @@ dependencies = [
  "anyhow",
  "clap",
  "env_logger",
- "lazy_static",
  "log",
  "reqwest",
  "tempfile",
