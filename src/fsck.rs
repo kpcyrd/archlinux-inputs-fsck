@@ -161,7 +161,8 @@ pub async fn check_pkg(pkg: &str, work_dir: Option<PathBuf>) -> Result<()> {
     let sources = makepkg::list_sources(&path).await?;
     debug!("Found sources: {:?}", sources);
 
-    let mut sources = sources.into_iter()
+    let mut sources = sources
+        .into_iter()
         .map(|source| {
             let scheme = source.scheme();
             Ok(match &scheme {
@@ -218,6 +219,15 @@ pub async fn check_pkg(pkg: &str, work_dir: Option<PathBuf>) -> Result<()> {
         }
     }
 
+    // if an upstream project has submodules it's normal for them to be listed
+    // in source= without pinning them by commit. As long as the primary repo
+    // is securely pinned it's fine, but there's no reliable way to determine which
+    // one is the primary one. So we just assume if any is pinned it's a-okay.
+    let has_any_secure_git_sources = sources.iter().any(|source| match source {
+        AuthedSource::Git(source) => source.is_commit_securely_pinned(),
+        _ => false,
+    });
+
     for source in sources {
         debug!("source={:?}", source);
         match source {
@@ -228,12 +238,19 @@ pub async fn check_pkg(pkg: &str, work_dir: Option<PathBuf>) -> Result<()> {
                     continue;
                 }
 
-                if !source.checksums.iter().any(|x| x.is_checksum_securely_pinned()) {
-                    warn!("Url artifact is not securely pinned by checksums: {:?}", source);
+                if !source
+                    .checksums
+                    .iter()
+                    .any(|x| x.is_checksum_securely_pinned())
+                {
+                    warn!(
+                        "Url artifact is not securely pinned by checksums: {:?}",
+                        source
+                    );
                 }
             }
             AuthedSource::Git(source) => {
-                if !source.is_commit_securely_pinned() {
+                if !has_any_secure_git_sources && !source.is_commit_securely_pinned() {
                     warn!("Git commit is not securely pinned: {:?}", source);
                 }
             }
