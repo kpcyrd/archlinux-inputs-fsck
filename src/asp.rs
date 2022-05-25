@@ -20,9 +20,11 @@ pub async fn list_packages() -> Result<Vec<String>> {
 }
 
 pub async fn checkout_package(pkgbase: &str, directory: &Path) -> Result<PathBuf> {
-    info!("Checkout out {:?} to {:?}", pkgbase, directory);
+    debug!("Checkout out {:?} to {:?}", pkgbase, directory);
     let cmd = Command::new("asp")
         .args(&["checkout", pkgbase])
+        // TODO: find a better way to make it silent without discarding stderr
+        .stderr(Stdio::null())
         .current_dir(directory)
         .spawn()
         .with_context(|| anyhow!("Failed to run asp checkout {:?}", pkgbase))?;

@@ -1,6 +1,7 @@
 use archlinux_inputs_fsck::args::{Args, Pkgs, SubCommand};
 use archlinux_inputs_fsck::asp;
 use archlinux_inputs_fsck::errors::*;
+use archlinux_inputs_fsck::fsck;
 use clap::Parser;
 use env_logger::Env;
 
@@ -8,7 +9,10 @@ use env_logger::Env;
 async fn main() -> Result<()> {
     let args = Args::parse();
 
-    let log_level = "info";
+    let log_level = match args.verbose {
+        0 => "info",
+        _ => "debug",
+    };
     env_logger::init_from_env(Env::default().default_filter_or(log_level));
 
     match args.subcommand {
@@ -34,20 +38,16 @@ async fn main() -> Result<()> {
                 pkgs
             };
 
-            if pkgs.len() > 1 {
+            if pkgs.len() > 1 && work_dir.is_some() {
                 bail!("Option --work-dir can only be used with a single package at a time");
             }
 
             for pkg in pkgs {
                 info!("Checking {:?}", pkg);
 
-                let work_dir = if let Some(work_dir) = &work_dir {
-                    work_dir.clone()
-                } else {
-                    todo!("random work dir");
-                };
-
-                let foo = asp::checkout_package(&pkg, &work_dir).await?;
+                if let Err(err) = fsck::check_pkg(&pkg, work_dir.clone()).await {
+                    error!("Failed to check package: {:?} => {:#}", pkg, err);
+                }
             }
         }
     }
