@@ -2,21 +2,12 @@ use crate::asp;
 use crate::errors::*;
 use crate::makepkg;
 use crate::makepkg::Source;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::str::FromStr;
 
 enum WorkDir {
     Random(tempfile::TempDir),
     Explicit(PathBuf),
-}
-
-impl WorkDir {
-    fn path(&self) -> &Path {
-        match self {
-            WorkDir::Random(tmp) => tmp.path(),
-            WorkDir::Explicit(path) => path.as_ref(),
-        }
-    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -155,8 +146,19 @@ pub async fn check_pkg(pkg: &str, work_dir: Option<PathBuf>) -> Result<()> {
         WorkDir::Random(tmp)
     };
 
-    let mut path = asp::checkout_package(pkg, work_dir.path()).await?;
-    path.push("trunk");
+    let path = match &work_dir {
+        WorkDir::Explicit(root) => {
+            let mut path = root.clone();
+            path.push(pkg);
+            path.push("trunk");
+            path
+        }
+        WorkDir::Random(tmp) => {
+            let mut path = asp::checkout_package(pkg, tmp.path()).await?;
+            path.push("trunk");
+            path
+        }
+    };
 
     let sources = makepkg::list_sources(&path).await?;
     debug!("Found sources: {:?}", sources);

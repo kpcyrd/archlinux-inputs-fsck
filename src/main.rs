@@ -4,6 +4,26 @@ use archlinux_inputs_fsck::errors::*;
 use archlinux_inputs_fsck::fsck;
 use clap::Parser;
 use env_logger::Env;
+use std::fs;
+use std::path::Path;
+
+fn read_pkgs_from_dir(path: &Path) -> Result<Vec<String>> {
+    let mut pkgs = Vec::new();
+
+    for entry in fs::read_dir(path)? {
+        let entry = entry?;
+        let filename = entry
+            .file_name()
+            .into_string()
+            .map_err(|_| anyhow!("Failed to convert directory name to string"))?;
+        if filename == ".git" {
+            continue;
+        }
+        pkgs.push(filename);
+    }
+
+    Ok(pkgs)
+}
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -33,13 +53,18 @@ async fn main() -> Result<()> {
                 if !pkgs.is_empty() {
                     bail!("Setting packages explicitly is not allowed if --all is used");
                 }
-                asp::list_packages().await?
+
+                if let Some(work_dir) = &work_dir {
+                    read_pkgs_from_dir(work_dir)?
+                } else {
+                    asp::list_packages().await?
+                }
             } else {
                 pkgs
             };
 
-            if pkgs.len() > 1 && work_dir.is_some() {
-                bail!("Option --work-dir can only be used with a single package at a time");
+            if pkgs.is_empty() {
+                bail!("No packages selected");
             }
 
             for pkg in pkgs {
