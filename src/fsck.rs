@@ -163,6 +163,8 @@ pub async fn check_pkg(pkg: &str, work_dir: Option<PathBuf>) -> Result<()> {
     let sources = makepkg::list_sources(&path).await?;
     debug!("Found sources: {:?}", sources);
 
+    let mut findings = Vec::new();
+
     let mut sources = sources
         .into_iter()
         .map(|source| {
@@ -173,17 +175,18 @@ pub async fn check_pkg(pkg: &str, work_dir: Option<PathBuf>) -> Result<()> {
                 Some("ftp") => AuthedSource::url(source),
                 Some(scheme) if scheme.starts_with("git") => {
                     if let "git" | "git+http" = *scheme {
-                        warn!("Using insecure {}:// scheme: {:?}", scheme, source);
+                        findings.push(format!("Using insecure {}:// scheme: {:?}", scheme, source));
+                        findings.push(format!("Using insecure {}:// scheme: {:?}", scheme, source));
                     }
 
                     AuthedSource::Git(source.url().parse()?)
                 }
                 Some("svn+https") => {
-                    warn!("Insecure svn+https:// scheme: {:?}", source);
+                    findings.push(format!("Insecure svn+https:// scheme: {:?}", source));
                     AuthedSource::url(source)
                 }
                 Some(scheme) => {
-                    warn!("Unknown scheme: {:?}", scheme);
+                    findings.push(format!("Unknown scheme: {:?}", scheme));
                     AuthedSource::url(source)
                 }
                 None => AuthedSource::File(source.url().to_string()),
@@ -200,12 +203,12 @@ pub async fn check_pkg(pkg: &str, work_dir: Option<PathBuf>) -> Result<()> {
         debug!("Found checksums ({}): {:?}", alg, sums);
 
         if sources.len() != sums.len() {
-            warn!(
+            findings.push(format!(
                 "Number of checksums doesn't match number of sources (sources={}, {}={})",
                 sources.len(),
                 alg,
                 sums.len()
-            );
+            ));
         }
 
         for (i, sum) in sums.into_iter().enumerate() {
@@ -245,15 +248,15 @@ pub async fn check_pkg(pkg: &str, work_dir: Option<PathBuf>) -> Result<()> {
                     .iter()
                     .any(|x| x.is_checksum_securely_pinned())
                 {
-                    warn!(
+                    findings.push(format!(
                         "Url artifact is not securely pinned by checksums: {:?}",
                         source
-                    );
+                    ));
                 }
             }
             AuthedSource::Git(source) => {
                 if !has_any_secure_git_sources && !source.is_commit_securely_pinned() {
-                    warn!("Git commit is not securely pinned: {:?}", source);
+                    findings.push(format!("Git commit is not securely pinned: {:?}", source));
                 }
             }
         }
@@ -262,6 +265,10 @@ pub async fn check_pkg(pkg: &str, work_dir: Option<PathBuf>) -> Result<()> {
     let validpgpkeys = makepkg::list_variable(&path, "validpgpkeys").await?;
     if !validpgpkeys.is_empty() {
         debug!("Found validpgpkeys={:?}", validpgpkeys);
+    }
+
+    for finding in findings {
+        warn!("{:?}: {}", pkg, finding);
     }
 
     Ok(())
