@@ -14,6 +14,9 @@ pub struct Args {
     /// Turn debugging information on
     #[clap(short, long, global = true, parse(from_occurrences))]
     pub verbose: usize,
+    /// Less verbose output
+    #[clap(short, long, global = true, parse(from_occurrences))]
+    pub quiet: usize,
 
     #[clap(subcommand)]
     pub subcommand: SubCommand,

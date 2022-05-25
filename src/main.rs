@@ -29,9 +29,11 @@ fn read_pkgs_from_dir(path: &Path) -> Result<Vec<String>> {
 async fn main() -> Result<()> {
     let args = Args::parse();
 
-    let log_level = match args.verbose {
-        0 => "info",
-        _ => "debug",
+    let log_level = match (args.quiet, args.verbose) {
+        (0, 0) => "info",
+        (0, _) => "debug",
+        (1, _) => "warn",
+        (_, _) => "error",
     };
     env_logger::init_from_env(Env::default().default_filter_or(log_level));
 
