@@ -1,4 +1,4 @@
-use archlinux_inputs_fsck::args::{Args, Pkgs, SubCommand};
+use archlinux_inputs_fsck::args::{Args, SubCommand};
 use archlinux_inputs_fsck::asp;
 use archlinux_inputs_fsck::errors::*;
 use archlinux_inputs_fsck::fsck;
@@ -38,14 +38,6 @@ async fn main() -> Result<()> {
     env_logger::init_from_env(Env::default().default_filter_or(log_level));
 
     match args.subcommand {
-        SubCommand::Pkgs { subcommand } => match subcommand {
-            Pkgs::Ls { .. } => {
-                let pkgs = asp::list_packages().await?;
-                for pkg in pkgs {
-                    println!("{}", pkg);
-                }
-            }
-        },
         SubCommand::Check {
             pkgs,
             all,
