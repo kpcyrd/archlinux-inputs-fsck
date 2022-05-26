@@ -112,6 +112,11 @@ impl FromStr for GitSource {
         let mut commit = None;
         let mut tag = None;
 
+        if let Some(remaining) = s.strip_suffix("?signed") {
+            signed = true;
+            s = remaining;
+        }
+
         if let Some((remaining, value)) = s.rsplit_once("#commit=") {
             commit = Some(value.to_string());
             s = remaining;
