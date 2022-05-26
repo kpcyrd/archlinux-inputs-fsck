@@ -1,6 +1,11 @@
 [package]
 name = "archlinux-inputs-fsck"
 version = "0.1.0"
+description = "Lint repository of PKGBUILDs for cryptographically pinned inputs"
+authors = ["kpcyrd <git@rxv.cc>"]
+license = "GPL-3.0"
+repository = "https://github.com/kpcyrd/archlinux-inputs-fsck"
+categories = ["command-line-utilities"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
