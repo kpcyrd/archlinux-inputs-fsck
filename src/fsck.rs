@@ -1,5 +1,6 @@
 use crate::asp;
 use crate::errors::*;
+use crate::github;
 use crate::makepkg;
 use crate::makepkg::Source;
 use std::path::PathBuf;
@@ -142,6 +143,14 @@ impl FromStr for GitSource {
 }
 
 pub async fn check_pkg(pkg: &str, work_dir: Option<PathBuf>) -> Result<()> {
+    let client = reqwest::Client::builder()
+        .user_agent(concat!(
+            env!("CARGO_PKG_NAME"),
+            "/",
+            env!("CARGO_PKG_VERSION"),
+        ))
+        .build()?;
+
     let work_dir = if let Some(work_dir) = &work_dir {
         WorkDir::Explicit(work_dir.clone())
     } else {
@@ -257,6 +266,23 @@ pub async fn check_pkg(pkg: &str, work_dir: Option<PathBuf>) -> Result<()> {
                         "Url artifact is not securely pinned by checksums: {:?}",
                         source
                     ));
+                }
+
+                /*
+                let re =
+                    Regex::new(r"^https://gitlab.com/[^/]+/([^/]+)/-/archive/(.+)/[^/]+.tar.gz$")?;
+                */
+
+                if let Some(upstream) = github::detect_signed_tag_from_url(&source.url)? {
+                    let tag =
+                        github::fetch_tag(&client, &upstream.owner, &upstream.name, &upstream.tag)
+                            .await?;
+                    if tag.object.r#type == "tag" {
+                        info!(
+                            "✨ There's likely a signed tag here we could use: {:?}",
+                            tag
+                        );
+                    }
                 }
             }
             AuthedSource::Git(source) => {
