@@ -142,7 +142,7 @@ impl FromStr for GitSource {
     }
 }
 
-pub async fn check_pkg(pkg: &str, work_dir: Option<PathBuf>) -> Result<()> {
+pub async fn check_pkg(pkg: &str, work_dir: Option<PathBuf>, discover_sigs: bool) -> Result<()> {
     let client = reqwest::Client::builder()
         .user_agent(concat!(
             env!("CARGO_PKG_NAME"),
@@ -273,15 +273,17 @@ pub async fn check_pkg(pkg: &str, work_dir: Option<PathBuf>) -> Result<()> {
                     Regex::new(r"^https://gitlab.com/[^/]+/([^/]+)/-/archive/(.+)/[^/]+.tar.gz$")?;
                 */
 
-                if let Some(upstream) = github::detect_signed_tag_from_url(&source.url)? {
-                    let tag =
-                        github::fetch_tag(&client, &upstream.owner, &upstream.name, &upstream.tag)
-                            .await?;
-                    if tag.object.r#type == "tag" {
-                        info!(
-                            "✨ There's likely a signed tag here we could use: {:?}",
-                            tag
-                        );
+                if discover_sigs {
+                    if let Some(upstream) = github::detect_signed_tag_from_url(&source.url)? {
+                        let tag =
+                            github::fetch_tag(&client, &upstream.owner, &upstream.name, &upstream.tag)
+                                .await?;
+                        if tag.object.r#type == "tag" {
+                            info!(
+                                "✨ There's likely a signed tag here we could use: {:?}",
+                                tag
+                            );
+                        }
                     }
                 }
             }

@@ -38,23 +38,19 @@ async fn main() -> Result<()> {
     env_logger::init_from_env(Env::default().default_filter_or(log_level));
 
     match args.subcommand {
-        SubCommand::Check {
-            pkgs,
-            all,
-            work_dir,
-        } => {
-            let pkgs = if all {
-                if !pkgs.is_empty() {
+        SubCommand::Check(check) => {
+            let pkgs = if check.all {
+                if !check.pkgs.is_empty() {
                     bail!("Setting packages explicitly is not allowed if --all is used");
                 }
 
-                if let Some(work_dir) = &work_dir {
+                if let Some(work_dir) = &check.work_dir {
                     read_pkgs_from_dir(work_dir)?
                 } else {
                     asp::list_packages().await?
                 }
             } else {
-                pkgs
+                check.pkgs
             };
 
             if pkgs.is_empty() {
@@ -64,7 +60,7 @@ async fn main() -> Result<()> {
             for pkg in pkgs {
                 info!("Checking {:?}", pkg);
 
-                if let Err(err) = fsck::check_pkg(&pkg, work_dir.clone()).await {
+                if let Err(err) = fsck::check_pkg(&pkg, check.work_dir.clone(), check.discover_sigs).await {
                     error!("Failed to check package: {:?} => {:#}", pkg, err);
                 }
             }

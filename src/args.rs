@@ -15,11 +15,16 @@ pub struct Args {
 
 #[derive(Debug, Subcommand)]
 pub enum SubCommand {
-    Check {
-        pkgs: Vec<String>,
-        #[clap(short, long)]
-        all: bool,
-        #[clap(short = 'W', long)]
-        work_dir: Option<PathBuf>,
-    },
+    Check(Check),
+}
+
+#[derive(Debug, Parser)]
+pub struct Check {
+    pub pkgs: Vec<String>,
+    #[clap(short, long)]
+    pub all: bool,
+    #[clap(short = 'W', long)]
+    pub work_dir: Option<PathBuf>,
+    #[clap(long)]
+    pub discover_sigs: bool,
 }
