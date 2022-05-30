@@ -98,11 +98,17 @@ struct GitSource {
 impl GitSource {
     fn is_commit_securely_pinned(&self) -> bool {
         if let Some(commit) = &self.commit {
-            commit.len() == 40
+            is_git_object_hash(commit)
+        } else if let Some(tag) = &self.tag {
+            is_git_object_hash(tag)
         } else {
             false
         }
     }
+}
+
+fn is_git_object_hash(name: &str) -> bool {
+    name.len() == 40 && name.chars().all(|c| matches!(c, '0'..='9' | 'a'..='f'))
 }
 
 impl FromStr for GitSource {
@@ -275,9 +281,13 @@ pub async fn check_pkg(pkg: &str, work_dir: Option<PathBuf>, discover_sigs: bool
 
                 if discover_sigs {
                     if let Some(upstream) = github::detect_signed_tag_from_url(&source.url)? {
-                        let tag =
-                            github::fetch_tag(&client, &upstream.owner, &upstream.name, &upstream.tag)
-                                .await?;
+                        let tag = github::fetch_tag(
+                            &client,
+                            &upstream.owner,
+                            &upstream.name,
+                            &upstream.tag,
+                        )
+                        .await?;
                         if tag.object.r#type == "tag" {
                             info!(
                                 "✨ There's likely a signed tag here we could use: {:?}",

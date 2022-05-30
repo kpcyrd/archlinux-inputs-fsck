@@ -60,7 +60,9 @@ async fn main() -> Result<()> {
             for pkg in pkgs {
                 info!("Checking {:?}", pkg);
 
-                if let Err(err) = fsck::check_pkg(&pkg, check.work_dir.clone(), check.discover_sigs).await {
+                if let Err(err) =
+                    fsck::check_pkg(&pkg, check.work_dir.clone(), check.discover_sigs).await
+                {
                     error!("Failed to check package: {:?} => {:#}", pkg, err);
                 }
             }
