@@ -6,6 +6,7 @@ use clap::Parser;
 use env_logger::Env;
 use std::fs;
 use std::path::Path;
+use tokio::task::JoinSet;
 
 fn read_pkgs_from_dir(path: &Path) -> Result<Vec<String>> {
     let mut pkgs = Vec::new();
@@ -57,13 +58,32 @@ async fn main() -> Result<()> {
                 bail!("No packages selected");
             }
 
-            for pkg in pkgs {
-                info!("Checking {:?}", pkg);
+            let mut pool = JoinSet::new();
+            let mut queue = pkgs.into_iter();
 
-                if let Err(err) =
-                    fsck::check_pkg(&pkg, check.work_dir.clone(), check.discover_sigs).await
-                {
-                    error!("Failed to check package: {:?} => {:#}", pkg, err);
+            let concurrency = num_cpus::get() * 2;
+            loop {
+                while pool.len() < concurrency {
+                    if let Some(pkg) = queue.next() {
+                        let work_dir = check.work_dir.clone();
+                        pool.spawn(async move {
+                            info!("Checking {:?}", pkg);
+
+                            if let Err(err) =
+                                fsck::check_pkg(&pkg, work_dir, check.discover_sigs).await
+                            {
+                                error!("Failed to check package: {:?} => {:#}", pkg, err);
+                            }
+                        });
+                    } else {
+                        // no more tasks to schedule
+                        break;
+                    }
+                }
+
+                if pool.join_next().await.is_none() {
+                    // no more tasks in pool
+                    break;
                 }
             }
         }

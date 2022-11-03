@@ -22,7 +22,7 @@ pub async fn list_packages() -> Result<Vec<String>> {
 pub async fn checkout_package(pkgbase: &str, directory: &Path) -> Result<PathBuf> {
     debug!("Checkout out {:?} to {:?}", pkgbase, directory);
     let cmd = Command::new("asp")
-        .args(&["checkout", pkgbase])
+        .args(["checkout", pkgbase])
         // TODO: find a better way to make it silent without discarding stderr
         .stderr(Stdio::null())
         .current_dir(directory)

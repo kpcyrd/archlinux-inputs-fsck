@@ -16,7 +16,7 @@ pub struct TagObject {
     pub url: String,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TagUrl {
     pub owner: String,
     pub name: String,
