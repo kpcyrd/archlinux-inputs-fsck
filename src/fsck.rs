@@ -201,8 +201,8 @@ pub async fn check_pkg(pkg: &str, work_dir: Option<PathBuf>, discover_sigs: bool
 
                     AuthedSource::Git(source.url().parse()?)
                 }
-                Some("svn+https") => {
-                    findings.push(format!("Insecure svn+https:// scheme: {:?}", source));
+                Some("svn+http") => {
+                    findings.push(format!("Insecure svn+http:// scheme: {:?}", source));
                     AuthedSource::url(source)
                 }
                 Some(scheme) => {
