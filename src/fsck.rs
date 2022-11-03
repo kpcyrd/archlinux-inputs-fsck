@@ -194,7 +194,7 @@ pub async fn check_pkg(pkg: &str, work_dir: Option<PathBuf>, discover_sigs: bool
                 Some("http") => AuthedSource::url(source),
                 Some("ftp") => AuthedSource::url(source),
                 Some(scheme) if scheme.starts_with("git") => {
-                    if let "git" | "git+http" = *scheme {
+                    if let "git" | "git+http" | "git+git" = *scheme {
                         findings.push(format!("Using insecure {}:// scheme: {:?}", scheme, source));
                         findings.push(format!("Using insecure {}:// scheme: {:?}", scheme, source));
                     }
