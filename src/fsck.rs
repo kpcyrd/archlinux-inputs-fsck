@@ -220,42 +220,40 @@ pub async fn check_pkg(
                 Some("ftp") => AuthedSource::url(source),
                 Some(scheme) if scheme.starts_with("git") => {
                     if let "git" | "git+http" | "git+git" = *scheme {
+                        // Mark all insecure ones
                         findings.push(Finding::InsecureScheme {
                             scheme: scheme.to_string(),
                             source: source.clone(),
                         });
-                    } else if let "git+https" = *scheme {
-                        // these are fine
-                    } else {
+                    } else if !matches!(*scheme, "git+https") {
+                        // Mark all that aren't known as secure as `unknown`
                         findings.push(Finding::UnknownScheme((scheme.to_string(), source.clone())));
                     }
 
                     AuthedSource::Git(source.url().parse()?)
                 }
                 Some(scheme) if scheme.starts_with("svn") => {
-                    // TODO: check there are more insecure schemes
-                    if *scheme == "svn+http" {
+                    if let "svn" | "svn+http" = *scheme {
+                        // Mark all insecure ones
                         findings.push(Finding::InsecureScheme {
                             scheme: scheme.to_string(),
                             source: source.clone(),
                         });
-                    } else if let "svn+https" = *scheme {
-                        // these are fine
-                    } else {
+                    } else if !matches!(*scheme, "svn+https") {
+                        // Mark all that aren't known as secure as `unknown`
                         findings.push(Finding::UnknownScheme((scheme.to_string(), source.clone())));
                     }
                     AuthedSource::Svn(source.url().parse()?)
                 }
                 Some(scheme) if scheme.starts_with("hg") => {
-                    // TODO: check there are more insecure schemes
                     if *scheme == "hg+http" {
+                        // Mark all insecure ones
                         findings.push(Finding::InsecureScheme {
                             scheme: scheme.to_string(),
                             source: source.clone(),
                         });
-                    } else if let "hg+https" = *scheme {
-                        // these are fine
-                    } else {
+                    } else if !matches!(*scheme, "hg+https") {
+                        // Mark all that aren't known as secure as `unknown`
                         findings.push(Finding::UnknownScheme((scheme.to_string(), source.clone())));
                     }
                     AuthedSource::Hg(source.url().parse()?)
