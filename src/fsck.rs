@@ -1,4 +1,5 @@
 use crate::asp;
+use crate::bzr::BzrSource;
 use crate::errors::*;
 use crate::git::GitSource;
 use crate::github;
@@ -23,6 +24,7 @@ enum AuthedSource {
     Git(GitSource),
     Svn(SvnSource),
     Hg(HgSource),
+    Bzr(BzrSource),
 }
 
 impl AuthedSource {
@@ -110,6 +112,7 @@ pub enum Finding {
     GitCommitInsecurePin(GitSource),
     SvnInsecurePin(SvnSource),
     HgRevisionInsecurePin(HgSource),
+    BzrInsecurePin(BzrSource),
     UrlArtifactInsecurePin(UrlSource),
 }
 
@@ -157,6 +160,13 @@ impl fmt::Display for Finding {
             }
             Finding::HgRevisionInsecurePin(source) => {
                 write!(w, "Hg revision is not securely pinned: {:?}", source)
+            }
+            Finding::BzrInsecurePin(source) => {
+                write!(
+                    w,
+                    "bzr is never a cryptographically secure pin: {:?}",
+                    source
+                )
             }
             Finding::UrlArtifactInsecurePin(source) => {
                 write!(
@@ -258,6 +268,19 @@ pub async fn check_pkg(
                     }
                     AuthedSource::Hg(source.url().parse()?)
                 }
+                Some(scheme) if scheme.starts_with("bzr") => {
+                    if *scheme == "bzr+http" {
+                        // Mark all insecure ones
+                        findings.push(Finding::InsecureScheme {
+                            scheme: scheme.to_string(),
+                            source: source.clone(),
+                        });
+                    } else if !matches!(*scheme, "bzr+https") {
+                        // Mark all that aren't known as secure as `unknown`
+                        findings.push(Finding::UnknownScheme((scheme.to_string(), source.clone())));
+                    }
+                    AuthedSource::Bzr(source.url().parse()?)
+                }
                 Some(scheme) => {
                     findings.push(Finding::UnknownScheme((scheme.to_string(), source.clone())));
                     AuthedSource::url(source)
@@ -358,6 +381,9 @@ pub async fn check_pkg(
                 if !source.is_revision_securely_pinned() {
                     findings.push(Finding::HgRevisionInsecurePin(source));
                 }
+            }
+            AuthedSource::Bzr(source) => {
+                findings.push(Finding::BzrInsecurePin(source));
             }
         }
     }
