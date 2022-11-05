@@ -18,6 +18,7 @@ pub struct Args {
 #[derive(Debug, Subcommand)]
 pub enum SubCommand {
     Check(Check),
+    SupportedIssues,
 }
 
 #[derive(Debug, Parser)]

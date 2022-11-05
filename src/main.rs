@@ -8,6 +8,7 @@ use std::collections::HashSet;
 use std::collections::VecDeque;
 use std::fs;
 use std::path::{Path, PathBuf};
+use strum::VariantNames;
 use tokio::task::JoinSet;
 
 fn read_pkgs_from_dir(out: &mut VecDeque<(String, Option<PathBuf>)>, path: &Path) -> Result<()> {
@@ -105,6 +106,11 @@ async fn main() -> Result<()> {
                     // no more tasks in pool
                     break;
                 }
+            }
+        }
+        SubCommand::SupportedIssues => {
+            for issue in Finding::VARIANTS {
+                println!("{}", issue);
             }
         }
     }

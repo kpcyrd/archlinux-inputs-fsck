@@ -253,6 +253,7 @@ pub async fn check_pkg(
                         // Mark all that aren't known as secure as `unknown`
                         findings.push(Finding::UnknownScheme((scheme.to_string(), source.clone())));
                     }
+
                     AuthedSource::Svn(source.url().parse()?)
                 }
                 Some(scheme) if scheme.starts_with("hg") => {
@@ -266,6 +267,7 @@ pub async fn check_pkg(
                         // Mark all that aren't known as secure as `unknown`
                         findings.push(Finding::UnknownScheme((scheme.to_string(), source.clone())));
                     }
+
                     AuthedSource::Hg(source.url().parse()?)
                 }
                 Some(scheme) if scheme.starts_with("bzr") => {
@@ -279,6 +281,7 @@ pub async fn check_pkg(
                         // Mark all that aren't known as secure as `unknown`
                         findings.push(Finding::UnknownScheme((scheme.to_string(), source.clone())));
                     }
+
                     AuthedSource::Bzr(source.url().parse()?)
                 }
                 Some(scheme) => {
