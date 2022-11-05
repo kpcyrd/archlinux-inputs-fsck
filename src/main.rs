@@ -49,7 +49,8 @@ async fn main() -> Result<()> {
 
                 if !check.work_dir.is_empty() {
                     for work_dir in &check.work_dir {
-                        read_pkgs_from_dir(&mut queue, work_dir)?;
+                        read_pkgs_from_dir(&mut queue, work_dir)
+                            .context("Failed to scan directory for PKGBUILDs")?;
                     }
                 } else {
                     for pkg in asp::list_packages().await? {

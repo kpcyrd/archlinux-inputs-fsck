@@ -1,12 +1,12 @@
 use crate::asp;
 use crate::errors::*;
 use crate::github;
+use crate::git::GitSource;
 use crate::makepkg;
 use crate::makepkg::Source;
 use std::collections::HashSet;
 use std::fmt;
 use std::path::PathBuf;
-use std::str::FromStr;
 use strum::{EnumVariantNames, IntoStaticStr};
 
 enum WorkDir {
@@ -87,67 +87,6 @@ impl Checksum {
             Checksum::Sha512(_) => true,
             Checksum::B2(_) => true,
         }
-    }
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub struct GitSource {
-    url: String,
-    commit: Option<String>,
-    tag: Option<String>,
-    signed: bool,
-}
-
-impl GitSource {
-    fn is_commit_securely_pinned(&self) -> bool {
-        if let Some(commit) = &self.commit {
-            is_git_object_hash(commit)
-        } else if let Some(tag) = &self.tag {
-            is_git_object_hash(tag)
-        } else {
-            false
-        }
-    }
-}
-
-fn is_git_object_hash(name: &str) -> bool {
-    name.len() == 40 && name.chars().all(|c| matches!(c, '0'..='9' | 'a'..='f'))
-}
-
-impl FromStr for GitSource {
-    type Err = Error;
-
-    fn from_str(mut s: &str) -> Result<GitSource> {
-        let mut signed = false;
-        let mut commit = None;
-        let mut tag = None;
-
-        if let Some(remaining) = s.strip_suffix("?signed") {
-            signed = true;
-            s = remaining;
-        }
-
-        if let Some((remaining, value)) = s.rsplit_once("#commit=") {
-            commit = Some(value.to_string());
-            s = remaining;
-        }
-
-        if let Some((remaining, value)) = s.rsplit_once("#tag=") {
-            tag = Some(value.to_string());
-            s = remaining;
-        }
-
-        if let Some(remaining) = s.strip_suffix("?signed") {
-            signed = true;
-            s = remaining;
-        }
-
-        Ok(GitSource {
-            url: s.to_string(),
-            commit,
-            tag,
-            signed,
-        })
     }
 }
 
