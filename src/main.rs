@@ -4,6 +4,7 @@ use archlinux_inputs_fsck::errors::*;
 use archlinux_inputs_fsck::fsck;
 use clap::Parser;
 use env_logger::Env;
+use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
 use tokio::task::JoinSet;
@@ -58,6 +59,8 @@ async fn main() -> Result<()> {
                 bail!("No packages selected");
             }
 
+            let filters = HashSet::<String>::from_iter(check.filters.into_iter());
+
             let mut pool = JoinSet::new();
             let mut queue = pkgs.into_iter();
 
@@ -68,12 +71,9 @@ async fn main() -> Result<()> {
                         let work_dir = check.work_dir.clone();
                         pool.spawn(async move {
                             info!("Checking {:?}", pkg);
-
-                            if let Err(err) =
-                                fsck::check_pkg(&pkg, work_dir, check.discover_sigs).await
-                            {
-                                error!("Failed to check package: {:?} => {:#}", pkg, err);
-                            }
+                            let findings =
+                                fsck::check_pkg(&pkg, work_dir, check.discover_sigs).await;
+                            (pkg, findings)
                         });
                     } else {
                         // no more tasks to schedule
@@ -81,7 +81,25 @@ async fn main() -> Result<()> {
                     }
                 }
 
-                if pool.join_next().await.is_none() {
+                if let Some(join) = pool.join_next().await {
+                    let (pkg, findings) = join.context("Failed to join task")?;
+                    match findings {
+                        Ok(findings) => {
+                            if check.report {
+                                for finding in findings {
+                                    let key: &'static str = finding.into();
+                                    if filters.is_empty() || filters.contains(key) {
+                                        println!("{}", pkg);
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        Err(err) => {
+                            error!("Failed to check package: {:?} => {:#}", pkg, err);
+                        }
+                    }
+                } else {
                     // no more tasks in pool
                     break;
                 }

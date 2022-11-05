@@ -151,6 +151,7 @@ impl FromStr for GitSource {
 }
 
 #[derive(IntoStaticStr, EnumVariantNames)]
+#[strum(serialize_all = "kebab_case")]
 pub enum Finding {
     InsecureScheme {
         scheme: String,
@@ -196,7 +197,11 @@ impl fmt::Display for Finding {
     }
 }
 
-pub async fn check_pkg(pkg: &str, work_dir: Option<PathBuf>, discover_sigs: bool) -> Result<()> {
+pub async fn check_pkg(
+    pkg: &str,
+    work_dir: Option<PathBuf>,
+    discover_sigs: bool,
+) -> Result<Vec<Finding>> {
     let client = reqwest::Client::builder()
         .user_agent(concat!(
             env!("CARGO_PKG_NAME"),
@@ -359,9 +364,9 @@ pub async fn check_pkg(pkg: &str, work_dir: Option<PathBuf>, discover_sigs: bool
         debug!("Found validpgpkeys={:?}", validpgpkeys);
     }
 
-    for finding in findings {
+    for finding in &findings {
         warn!("{:?}: {}", pkg, finding);
     }
 
-    Ok(())
+    Ok(findings)
 }

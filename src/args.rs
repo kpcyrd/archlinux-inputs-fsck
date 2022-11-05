@@ -27,8 +27,13 @@ pub struct Check {
     pub all: bool,
     #[clap(short = 'W', long)]
     pub work_dir: Option<PathBuf>,
+    /// Filter only for specific findings
     #[clap(long)]
     pub discover_sigs: bool,
-    #[clap(short, long, possible_values=Finding::VARIANTS)]
+    /// Filter only for specific findings
+    #[clap(short, long="filter", possible_values=Finding::VARIANTS)]
     pub filters: Vec<String>,
+    /// Print package names with findings to stdout
+    #[clap(short, long)]
+    pub report: bool,
 }
