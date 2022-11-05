@@ -269,15 +269,40 @@ pub async fn check_pkg(
                             scheme: scheme.to_string(),
                             source: source.clone(),
                         });
+                    } else if let "git+https" = *scheme {
+                        // these are fine
+                    } else {
+                        findings.push(Finding::UnknownScheme((scheme.to_string(), source.clone())));
                     }
 
                     AuthedSource::Git(source.url().parse()?)
                 }
-                Some("svn+http") => {
-                    findings.push(Finding::InsecureScheme {
-                        scheme: "svn+http".to_string(),
-                        source: source.clone(),
-                    });
+                Some(scheme) if scheme.starts_with("svn") => {
+                    // TODO: check there are more insecure schemes
+                    if *scheme == "svn+http" {
+                        findings.push(Finding::InsecureScheme {
+                            scheme: scheme.to_string(),
+                            source: source.clone(),
+                        });
+                    } else if let "svn+https" = *scheme {
+                        // these are fine
+                    } else {
+                        findings.push(Finding::UnknownScheme((scheme.to_string(), source.clone())));
+                    }
+                    AuthedSource::url(source)
+                }
+                Some(scheme) if scheme.starts_with("hg") => {
+                    // TODO: check there are more insecure schemes
+                    if *scheme == "hg+http" {
+                        findings.push(Finding::InsecureScheme {
+                            scheme: scheme.to_string(),
+                            source: source.clone(),
+                        });
+                    } else if let "hg+https" = *scheme {
+                        // these are fine
+                    } else {
+                        findings.push(Finding::UnknownScheme((scheme.to_string(), source.clone())));
+                    }
                     AuthedSource::url(source)
                 }
                 Some(scheme) => {
