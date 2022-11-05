@@ -1,5 +1,7 @@
+use crate::fsck::Finding;
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
+use strum::VariantNames;
 
 #[derive(Debug, Parser)]
 pub struct Args {
@@ -27,4 +29,6 @@ pub struct Check {
     pub work_dir: Option<PathBuf>,
     #[clap(long)]
     pub discover_sigs: bool,
+    #[clap(short, long, possible_values=Finding::VARIANTS)]
+    pub filters: Vec<String>,
 }

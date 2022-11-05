@@ -3,8 +3,10 @@ use crate::errors::*;
 use crate::github;
 use crate::makepkg;
 use crate::makepkg::Source;
+use std::fmt;
 use std::path::PathBuf;
 use std::str::FromStr;
+use strum::{EnumVariantNames, IntoStaticStr};
 
 enum WorkDir {
     Random(tempfile::TempDir),
@@ -28,8 +30,8 @@ impl AuthedSource {
     }
 }
 
-#[derive(Debug, PartialEq)]
-struct UrlSource {
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct UrlSource {
     url: String,
     filename: Option<String>,
     checksums: Vec<Checksum>,
@@ -53,7 +55,7 @@ impl UrlSource {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 enum Checksum {
     Md5(String),
     Sha1(String),
@@ -87,8 +89,8 @@ impl Checksum {
     }
 }
 
-#[derive(Debug, PartialEq)]
-struct GitSource {
+#[derive(Debug, PartialEq, Eq)]
+pub struct GitSource {
     url: String,
     commit: Option<String>,
     tag: Option<String>,
@@ -148,6 +150,52 @@ impl FromStr for GitSource {
     }
 }
 
+#[derive(IntoStaticStr, EnumVariantNames)]
+pub enum Finding {
+    InsecureScheme {
+        scheme: String,
+        source: Source,
+    },
+    UnknownScheme((String, Source)),
+    WrongNumberOfChecksums {
+        sources: usize,
+        alg: &'static str,
+        sums: usize,
+    },
+    GitCommitInsecurePin(GitSource),
+    UrlArtifactInsecurePin(UrlSource),
+}
+
+impl fmt::Display for Finding {
+    fn fmt(&self, w: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Finding::InsecureScheme { scheme, source } => {
+                write!(w, "Using insecure {}:// scheme: {:?}", scheme, source)
+            }
+            Finding::UnknownScheme((scheme, source)) => {
+                write!(w, "Unknown scheme {:?}: {:?}", scheme, source)
+            }
+            Finding::WrongNumberOfChecksums { sources, alg, sums } => {
+                write!(
+                    w,
+                    "Number of checksums doesn't match number of sources (sources={}, {}={})",
+                    sources, alg, sums,
+                )
+            }
+            Finding::GitCommitInsecurePin(source) => {
+                write!(w, "Git commit is not securely pinned: {:?}", source)
+            }
+            Finding::UrlArtifactInsecurePin(source) => {
+                write!(
+                    w,
+                    "Url artifact is not securely pinned by checksums: {:?}",
+                    source
+                )
+            }
+        }
+    }
+}
+
 pub async fn check_pkg(pkg: &str, work_dir: Option<PathBuf>, discover_sigs: bool) -> Result<()> {
     let client = reqwest::Client::builder()
         .user_agent(concat!(
@@ -195,18 +243,23 @@ pub async fn check_pkg(pkg: &str, work_dir: Option<PathBuf>, discover_sigs: bool
                 Some("ftp") => AuthedSource::url(source),
                 Some(scheme) if scheme.starts_with("git") => {
                     if let "git" | "git+http" | "git+git" = *scheme {
-                        findings.push(format!("Using insecure {}:// scheme: {:?}", scheme, source));
-                        findings.push(format!("Using insecure {}:// scheme: {:?}", scheme, source));
+                        findings.push(Finding::InsecureScheme {
+                            scheme: scheme.to_string(),
+                            source: source.clone(),
+                        });
                     }
 
                     AuthedSource::Git(source.url().parse()?)
                 }
                 Some("svn+http") => {
-                    findings.push(format!("Insecure svn+http:// scheme: {:?}", source));
+                    findings.push(Finding::InsecureScheme {
+                        scheme: "svn+http".to_string(),
+                        source: source.clone(),
+                    });
                     AuthedSource::url(source)
                 }
                 Some(scheme) => {
-                    findings.push(format!("Unknown scheme: {:?}", scheme));
+                    findings.push(Finding::UnknownScheme((scheme.to_string(), source.clone())));
                     AuthedSource::url(source)
                 }
                 None => AuthedSource::File(source.url().to_string()),
@@ -223,12 +276,11 @@ pub async fn check_pkg(pkg: &str, work_dir: Option<PathBuf>, discover_sigs: bool
         debug!("Found checksums ({}): {:?}", alg, sums);
 
         if sources.len() != sums.len() {
-            findings.push(format!(
-                "Number of checksums doesn't match number of sources (sources={}, {}={})",
-                sources.len(),
+            findings.push(Finding::WrongNumberOfChecksums {
+                sources: sources.len(),
                 alg,
-                sums.len()
-            ));
+                sums: sums.len(),
+            });
         }
 
         for (i, sum) in sums.into_iter().enumerate() {
@@ -268,10 +320,7 @@ pub async fn check_pkg(pkg: &str, work_dir: Option<PathBuf>, discover_sigs: bool
                     .iter()
                     .any(|x| x.is_checksum_securely_pinned())
                 {
-                    findings.push(format!(
-                        "Url artifact is not securely pinned by checksums: {:?}",
-                        source
-                    ));
+                    findings.push(Finding::UrlArtifactInsecurePin(source.clone()));
                 }
 
                 /*
@@ -299,7 +348,7 @@ pub async fn check_pkg(pkg: &str, work_dir: Option<PathBuf>, discover_sigs: bool
             }
             AuthedSource::Git(source) => {
                 if !has_any_secure_git_sources && !source.is_commit_securely_pinned() {
-                    findings.push(format!("Git commit is not securely pinned: {:?}", source));
+                    findings.push(Finding::GitCommitInsecurePin(source));
                 }
             }
         }

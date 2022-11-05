@@ -5,7 +5,7 @@ use tokio::process::Command;
 
 pub const SUPPORTED_ALGS: &[&str] = &["sha256sums", "sha512sums", "b2sums", "md5sums", "sha1sums"];
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Source {
     Url(String),
     UrlWithFilename((String, String)),
