@@ -25,8 +25,9 @@ pub struct Check {
     pub pkgs: Vec<String>,
     #[clap(short, long)]
     pub all: bool,
+    /// Scan directories for PKGBUILDs or specify the work directory to clone packages into
     #[clap(short = 'W', long)]
-    pub work_dir: Option<PathBuf>,
+    pub work_dir: Vec<PathBuf>,
     /// Filter only for specific findings
     #[clap(long)]
     pub discover_sigs: bool,

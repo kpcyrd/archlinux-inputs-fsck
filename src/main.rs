@@ -5,13 +5,12 @@ use archlinux_inputs_fsck::fsck;
 use clap::Parser;
 use env_logger::Env;
 use std::collections::HashSet;
+use std::collections::VecDeque;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tokio::task::JoinSet;
 
-fn read_pkgs_from_dir(path: &Path) -> Result<Vec<String>> {
-    let mut pkgs = Vec::new();
-
+fn read_pkgs_from_dir(out: &mut VecDeque<(String, Option<PathBuf>)>, path: &Path) -> Result<()> {
     for entry in fs::read_dir(path)? {
         let entry = entry?;
         let filename = entry
@@ -21,10 +20,10 @@ fn read_pkgs_from_dir(path: &Path) -> Result<Vec<String>> {
         if filename == ".git" {
             continue;
         }
-        pkgs.push(filename);
+        out.push_back((filename, Some(path.to_owned())));
     }
 
-    Ok(pkgs)
+    Ok(())
 }
 
 #[tokio::main]
@@ -41,34 +40,40 @@ async fn main() -> Result<()> {
 
     match args.subcommand {
         SubCommand::Check(check) => {
-            let pkgs = if check.all {
+            let mut queue = VecDeque::<(String, Option<PathBuf>)>::new();
+
+            if check.all {
                 if !check.pkgs.is_empty() {
                     bail!("Setting packages explicitly is not allowed if --all is used");
                 }
 
-                if let Some(work_dir) = &check.work_dir {
-                    read_pkgs_from_dir(work_dir)?
+                if !check.work_dir.is_empty() {
+                    for work_dir in &check.work_dir {
+                        read_pkgs_from_dir(&mut queue, work_dir)?;
+                    }
                 } else {
-                    asp::list_packages().await?
+                    for pkg in asp::list_packages().await? {
+                        queue.push_back((pkg, None));
+                    }
                 }
             } else {
-                check.pkgs
-            };
+                for pkg in check.pkgs {
+                    queue.push_back((pkg, None));
+                }
+            }
 
-            if pkgs.is_empty() {
+            if queue.is_empty() {
                 bail!("No packages selected");
             }
 
             let filters = HashSet::<String>::from_iter(check.filters.into_iter());
 
             let mut pool = JoinSet::new();
-            let mut queue = pkgs.into_iter();
 
             let concurrency = num_cpus::get() * 2;
             loop {
                 while pool.len() < concurrency {
-                    if let Some(pkg) = queue.next() {
-                        let work_dir = check.work_dir.clone();
+                    if let Some((pkg, work_dir)) = queue.pop_front() {
                         pool.spawn(async move {
                             info!("Checking {:?}", pkg);
                             let findings =
