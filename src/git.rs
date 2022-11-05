@@ -28,7 +28,7 @@ fn is_git_object_hash(name: &str) -> bool {
 impl FromStr for GitSource {
     type Err = Error;
 
-    fn from_str(mut s: &str) -> Result<GitSource> {
+    fn from_str(mut s: &str) -> Result<Self> {
         let mut signed = false;
         let mut commit = None;
         let mut tag = None;
@@ -53,7 +53,7 @@ impl FromStr for GitSource {
             s = remaining;
         }
 
-        Ok(GitSource {
+        Ok(Self {
             url: s.to_string(),
             commit,
             tag,

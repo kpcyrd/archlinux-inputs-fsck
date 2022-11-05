@@ -1,9 +1,11 @@
 use crate::asp;
 use crate::errors::*;
-use crate::github;
 use crate::git::GitSource;
+use crate::github;
+use crate::hg::HgSource;
 use crate::makepkg;
 use crate::makepkg::Source;
+use crate::svn::SvnSource;
 use std::collections::HashSet;
 use std::fmt;
 use std::path::PathBuf;
@@ -19,6 +21,8 @@ enum AuthedSource {
     File(String),
     Url(UrlSource),
     Git(GitSource),
+    Svn(SvnSource),
+    Hg(HgSource),
 }
 
 impl AuthedSource {
@@ -104,6 +108,8 @@ pub enum Finding {
         sums: usize,
     },
     GitCommitInsecurePin(GitSource),
+    SvnInsecurePin(SvnSource),
+    HgRevisionInsecurePin(HgSource),
     UrlArtifactInsecurePin(UrlSource),
 }
 
@@ -141,6 +147,16 @@ impl fmt::Display for Finding {
             }
             Finding::GitCommitInsecurePin(source) => {
                 write!(w, "Git commit is not securely pinned: {:?}", source)
+            }
+            Finding::SvnInsecurePin(source) => {
+                write!(
+                    w,
+                    "svn is never a cryptographically secure pin: {:?}",
+                    source
+                )
+            }
+            Finding::HgRevisionInsecurePin(source) => {
+                write!(w, "Hg revision is not securely pinned: {:?}", source)
             }
             Finding::UrlArtifactInsecurePin(source) => {
                 write!(
@@ -228,7 +244,7 @@ pub async fn check_pkg(
                     } else {
                         findings.push(Finding::UnknownScheme((scheme.to_string(), source.clone())));
                     }
-                    AuthedSource::url(source)
+                    AuthedSource::Svn(source.url().parse()?)
                 }
                 Some(scheme) if scheme.starts_with("hg") => {
                     // TODO: check there are more insecure schemes
@@ -242,7 +258,7 @@ pub async fn check_pkg(
                     } else {
                         findings.push(Finding::UnknownScheme((scheme.to_string(), source.clone())));
                     }
-                    AuthedSource::url(source)
+                    AuthedSource::Hg(source.url().parse()?)
                 }
                 Some(scheme) => {
                     findings.push(Finding::UnknownScheme((scheme.to_string(), source.clone())));
@@ -335,6 +351,14 @@ pub async fn check_pkg(
             AuthedSource::Git(source) => {
                 if !has_any_secure_git_sources && !source.is_commit_securely_pinned() {
                     findings.push(Finding::GitCommitInsecurePin(source));
+                }
+            }
+            AuthedSource::Svn(source) => {
+                findings.push(Finding::SvnInsecurePin(source));
+            }
+            AuthedSource::Hg(source) => {
+                if !source.is_revision_securely_pinned() {
+                    findings.push(Finding::HgRevisionInsecurePin(source));
                 }
             }
         }
