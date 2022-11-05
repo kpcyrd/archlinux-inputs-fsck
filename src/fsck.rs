@@ -3,6 +3,7 @@ use crate::errors::*;
 use crate::github;
 use crate::makepkg;
 use crate::makepkg::Source;
+use std::collections::HashSet;
 use std::fmt;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -165,6 +166,22 @@ pub enum Finding {
     },
     GitCommitInsecurePin(GitSource),
     UrlArtifactInsecurePin(UrlSource),
+}
+
+impl Finding {
+    pub fn audit_list(pkg: &str, findings: &[Self], filters: &HashSet<String>) -> bool {
+        let mut has_findings = false;
+
+        for finding in findings {
+            let key: &'static str = finding.into();
+            if filters.is_empty() || filters.contains(key) {
+                warn!("{:?}: {}", pkg, finding);
+                has_findings = true;
+            }
+        }
+
+        has_findings
+    }
 }
 
 impl fmt::Display for Finding {
@@ -362,10 +379,6 @@ pub async fn check_pkg(
     let validpgpkeys = makepkg::list_variable(&path, "validpgpkeys").await?;
     if !validpgpkeys.is_empty() {
         debug!("Found validpgpkeys={:?}", validpgpkeys);
-    }
-
-    for finding in &findings {
-        warn!("{:?}: {}", pkg, finding);
     }
 
     Ok(findings)

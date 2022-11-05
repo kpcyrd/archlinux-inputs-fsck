@@ -1,7 +1,7 @@
 use archlinux_inputs_fsck::args::{Args, SubCommand};
 use archlinux_inputs_fsck::asp;
 use archlinux_inputs_fsck::errors::*;
-use archlinux_inputs_fsck::fsck;
+use archlinux_inputs_fsck::fsck::{self, Finding};
 use clap::Parser;
 use env_logger::Env;
 use std::collections::HashSet;
@@ -90,14 +90,10 @@ async fn main() -> Result<()> {
                     let (pkg, findings) = join.context("Failed to join task")?;
                     match findings {
                         Ok(findings) => {
-                            if check.report {
-                                for finding in findings {
-                                    let key: &'static str = finding.into();
-                                    if filters.is_empty() || filters.contains(key) {
-                                        println!("{}", pkg);
-                                        break;
-                                    }
-                                }
+                            let has_findings = Finding::audit_list(&pkg, &findings, &filters);
+
+                            if check.report && has_findings {
+                                println!("{}", pkg);
                             }
                         }
                         Err(err) => {
