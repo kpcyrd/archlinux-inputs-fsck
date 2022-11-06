@@ -3,7 +3,15 @@ use std::path::Path;
 use std::process::Stdio;
 use tokio::process::Command;
 
-pub const SUPPORTED_ALGS: &[&str] = &["sha256sums", "sha512sums", "b2sums", "md5sums", "sha1sums"];
+pub const SUPPORTED_ALGS: &[&str] = &[
+    "sha256sums",
+    "sha512sums",
+    "sha224sums",
+    "sha384sums",
+    "b2sums",
+    "md5sums",
+    "sha1sums",
+];
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Source {

@@ -68,6 +68,8 @@ enum Checksum {
     Sha1(String),
     Sha256(String),
     Sha512(String),
+    Sha224(String),
+    Sha384(String),
     B2(String),
 }
 
@@ -78,19 +80,21 @@ impl Checksum {
             "sha1sums" => Checksum::Sha1(value),
             "sha256sums" => Checksum::Sha256(value),
             "sha512sums" => Checksum::Sha512(value),
+            "sha224sums" => Checksum::Sha224(value),
+            "sha384sums" => Checksum::Sha384(value),
             "b2sums" => Checksum::B2(value),
             _ => bail!("Unknown checksum algorithm: {:?}", alg),
         })
     }
-}
 
-impl Checksum {
     fn is_checksum_securely_pinned(&self) -> bool {
         match self {
             Checksum::Md5(_) => false,
             Checksum::Sha1(_) => false,
             Checksum::Sha256(_) => true,
             Checksum::Sha512(_) => true,
+            Checksum::Sha224(_) => true,
+            Checksum::Sha384(_) => true,
             Checksum::B2(_) => true,
         }
     }
