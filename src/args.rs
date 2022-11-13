@@ -1,17 +1,17 @@
 use crate::fsck::Finding;
-use clap::{Parser, Subcommand};
+use clap::{ArgAction, Parser, Subcommand, builder::PossibleValuesParser};
 use std::path::PathBuf;
 use strum::VariantNames;
 
 #[derive(Debug, Parser)]
 pub struct Args {
     /// Turn debugging information on
-    #[clap(short, long, global = true, parse(from_occurrences))]
+    #[arg(short, long, global = true, action(ArgAction::Count))]
     pub verbose: usize,
     /// Less verbose output
-    #[clap(short, long, global = true, parse(from_occurrences))]
+    #[arg(short, long, global = true, action(ArgAction::Count))]
     pub quiet: usize,
-    #[clap(subcommand)]
+    #[command(subcommand)]
     pub subcommand: SubCommand,
 }
 
@@ -24,18 +24,18 @@ pub enum SubCommand {
 #[derive(Debug, Parser)]
 pub struct Check {
     pub pkgs: Vec<String>,
-    #[clap(short, long)]
+    #[arg(short, long)]
     pub all: bool,
     /// Scan directories for PKGBUILDs or specify the work directory to clone packages into
-    #[clap(short = 'W', long)]
+    #[arg(short = 'W', long)]
     pub work_dir: Vec<PathBuf>,
     /// Filter only for specific findings
-    #[clap(long)]
+    #[arg(long)]
     pub discover_sigs: bool,
     /// Filter only for specific findings
-    #[clap(short, long="filter", possible_values=Finding::VARIANTS)]
+    #[arg(short, long="filter", value_parser(PossibleValuesParser::new(Finding::VARIANTS)))]
     pub filters: Vec<String>,
     /// Print package names with findings to stdout
-    #[clap(short, long)]
+    #[arg(short, long)]
     pub report: bool,
 }

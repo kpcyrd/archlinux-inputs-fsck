@@ -1,7 +1,7 @@
 use crate::errors::*;
 use std::str::FromStr;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct HgSource {
     url: String,
     revision: Option<String>,

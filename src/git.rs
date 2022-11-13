@@ -1,7 +1,7 @@
 use crate::errors::*;
 use std::str::FromStr;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct GitSource {
     url: String,
     commit: Option<String>,

@@ -17,7 +17,7 @@ enum WorkDir {
     Explicit(PathBuf),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 enum AuthedSource {
     File(String),
     Url(UrlSource),
@@ -100,7 +100,7 @@ impl Checksum {
     }
 }
 
-#[derive(IntoStaticStr, EnumVariantNames)]
+#[derive(IntoStaticStr, EnumVariantNames, Clone)]
 #[strum(serialize_all = "kebab_case")]
 pub enum Finding {
     InsecureScheme {
