@@ -214,6 +214,11 @@ pub async fn check_pkg(target: &Target, discover_sigs: bool) -> Result<Vec<Findi
         Target::BuildPath(path) => (None, PathBuf::from(path)),
     };
 
+    let pkgbuild_path = path.join("PKGBUILD");
+    if !pkgbuild_path.exists() {
+        bail!("Missing PKGBUILD: {:?}", pkgbuild_path);
+    }
+
     let sources = makepkg::list_sources(&path).await?;
     debug!("Found sources: {:?}", sources);
 
