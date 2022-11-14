@@ -7,10 +7,10 @@ use strum::VariantNames;
 pub struct Args {
     /// Turn debugging information on
     #[arg(short, long, global = true, action(ArgAction::Count))]
-    pub verbose: usize,
+    pub verbose: u8,
     /// Less verbose output
     #[arg(short, long, global = true, action(ArgAction::Count))]
-    pub quiet: usize,
+    pub quiet: u8,
     #[command(subcommand)]
     pub subcommand: SubCommand,
 }
