@@ -7,14 +7,25 @@ use crate::hg::HgSource;
 use crate::makepkg;
 use crate::makepkg::Source;
 use crate::svn::SvnSource;
+use std::borrow::Cow;
 use std::collections::HashSet;
 use std::fmt;
 use std::path::PathBuf;
 use strum::{EnumVariantNames, IntoStaticStr};
 
-enum WorkDir {
-    Random(tempfile::TempDir),
-    Explicit(PathBuf),
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum Target {
+    ArchBuildSystem(String),
+    BuildPath(PathBuf),
+}
+
+impl Target {
+    pub fn display(&self) -> Cow<str> {
+        match self {
+            Target::ArchBuildSystem(pkg) => Cow::Borrowed(pkg),
+            Target::BuildPath(path) => path.to_string_lossy(),
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -121,13 +132,13 @@ pub enum Finding {
 }
 
 impl Finding {
-    pub fn audit_list(pkg: &str, findings: &[Self], filters: &HashSet<String>) -> bool {
+    pub fn audit_list(target: &Target, findings: &[Self], filters: &HashSet<String>) -> bool {
         let mut has_findings = false;
 
         for finding in findings {
             let key: &'static str = finding.into();
             if filters.is_empty() || filters.contains(key) {
-                warn!("{:?}: {}", pkg, finding);
+                warn!("{:?}: {}", target.display(), finding);
                 has_findings = true;
             }
         }
@@ -183,11 +194,7 @@ impl fmt::Display for Finding {
     }
 }
 
-pub async fn check_pkg(
-    pkg: &str,
-    work_dir: Option<PathBuf>,
-    discover_sigs: bool,
-) -> Result<Vec<Finding>> {
+pub async fn check_pkg(target: &Target, discover_sigs: bool) -> Result<Vec<Finding>> {
     let client = reqwest::Client::builder()
         .user_agent(concat!(
             env!("CARGO_PKG_NAME"),
@@ -196,27 +203,15 @@ pub async fn check_pkg(
         ))
         .build()?;
 
-    let work_dir = if let Some(work_dir) = &work_dir {
-        WorkDir::Explicit(work_dir.clone())
-    } else {
-        let tmp = tempfile::Builder::new()
-            .prefix("archlinux-inputs-fsck")
-            .tempdir()?;
-        WorkDir::Random(tmp)
-    };
-
-    let path = match &work_dir {
-        WorkDir::Explicit(root) => {
-            let mut path = root.clone();
-            path.push(pkg);
-            path.push("trunk");
-            path
+    let (_temp_dir, path) = match &target {
+        Target::ArchBuildSystem(pkg) => {
+            let tmp = tempfile::Builder::new()
+                .prefix("archlinux-inputs-fsck")
+                .tempdir()?;
+            let path = asp::checkout_package(&tmp.path(), pkg).await?;
+            (Some(tmp), path)
         }
-        WorkDir::Random(tmp) => {
-            let mut path = asp::checkout_package(pkg, tmp.path()).await?;
-            path.push("trunk");
-            path
-        }
+        Target::BuildPath(path) => (None, PathBuf::from(path)),
     };
 
     let sources = makepkg::list_sources(&path).await?;

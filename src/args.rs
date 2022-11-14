@@ -1,5 +1,5 @@
 use crate::fsck::Finding;
-use clap::{ArgAction, Parser, Subcommand, builder::PossibleValuesParser};
+use clap::{builder::PossibleValuesParser, ArgAction, Parser, Subcommand};
 use std::path::PathBuf;
 use strum::VariantNames;
 
@@ -23,17 +23,22 @@ pub enum SubCommand {
 
 #[derive(Debug, Parser)]
 pub struct Check {
-    pub pkgs: Vec<String>,
-    #[arg(short, long)]
-    pub all: bool,
-    /// Scan directories for PKGBUILDs or specify the work directory to clone packages into
-    #[arg(short = 'W', long)]
-    pub work_dir: Vec<PathBuf>,
+    pub paths: Vec<PathBuf>,
+    /// Scan directory for PKGBUILDs or specify the work directory to clone packages into (eg. ./svntogit-packages)
+    #[arg(short = 'W', short_alias = 'S', long, value_name = "PATH")]
+    pub scan_directory: Vec<PathBuf>,
+    /// Checkout PKGBUILD with asp from devtools into a temporary directory
+    #[arg(short = 'B', long, value_name = "PKG_NAME")]
+    pub arch_build_system: Vec<String>,
     /// Filter only for specific findings
     #[arg(long)]
     pub discover_sigs: bool,
     /// Filter only for specific findings
-    #[arg(short, long="filter", value_parser(PossibleValuesParser::new(Finding::VARIANTS)))]
+    #[arg(
+        short,
+        long = "filter",
+        value_parser(PossibleValuesParser::new(Finding::VARIANTS))
+    )]
     pub filters: Vec<String>,
     /// Print package names with findings to stdout
     #[arg(short, long)]

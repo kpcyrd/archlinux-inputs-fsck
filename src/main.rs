@@ -1,17 +1,16 @@
 use archlinux_inputs_fsck::args::{Args, SubCommand};
-use archlinux_inputs_fsck::asp;
 use archlinux_inputs_fsck::errors::*;
-use archlinux_inputs_fsck::fsck::{self, Finding};
+use archlinux_inputs_fsck::fsck::{self, Finding, Target};
 use clap::Parser;
 use env_logger::Env;
 use std::collections::HashSet;
 use std::collections::VecDeque;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use strum::VariantNames;
 use tokio::task::JoinSet;
 
-fn read_pkgs_from_dir(out: &mut VecDeque<(String, Option<PathBuf>)>, path: &Path) -> Result<()> {
+fn read_pkgs_from_dir(out: &mut VecDeque<Target>, path: &Path) -> Result<()> {
     for entry in fs::read_dir(path)? {
         let entry = entry?;
         let filename = entry
@@ -21,7 +20,8 @@ fn read_pkgs_from_dir(out: &mut VecDeque<(String, Option<PathBuf>)>, path: &Path
         if filename == ".git" {
             continue;
         }
-        out.push_back((filename, Some(path.to_owned())));
+        let path = entry.path().join("trunk");
+        out.push_back(Target::BuildPath(path));
     }
 
     Ok(())
@@ -41,31 +41,19 @@ async fn main() -> Result<()> {
 
     match args.subcommand {
         SubCommand::Check(check) => {
-            let mut queue = VecDeque::<(String, Option<PathBuf>)>::new();
+            let mut queue = VecDeque::new();
 
-            if check.all {
-                if !check.pkgs.is_empty() {
-                    bail!("Setting packages explicitly is not allowed if --all is used");
-                }
-
-                if !check.work_dir.is_empty() {
-                    for work_dir in &check.work_dir {
-                        read_pkgs_from_dir(&mut queue, work_dir)
-                            .context("Failed to scan directory for PKGBUILDs")?;
-                    }
-                } else {
-                    for pkg in asp::list_packages().await? {
-                        queue.push_back((pkg, None));
-                    }
-                }
-            } else {
-                for pkg in check.pkgs {
-                    queue.push_back((pkg, None));
-                }
+            for dir in &check.scan_directory {
+                read_pkgs_from_dir(&mut queue, dir)
+                    .context("Failed to scan directory for PKGBUILDs")?;
             }
 
-            if queue.is_empty() {
-                bail!("No packages selected");
+            for pkg in check.arch_build_system {
+                queue.push_back(Target::ArchBuildSystem(pkg));
+            }
+
+            for path in check.paths {
+                queue.push_back(Target::BuildPath(path));
             }
 
             let filters = HashSet::<String>::from_iter(check.filters.into_iter());
@@ -75,12 +63,12 @@ async fn main() -> Result<()> {
             let concurrency = num_cpus::get() * 2;
             loop {
                 while pool.len() < concurrency {
-                    if let Some((pkg, work_dir)) = queue.pop_front() {
+                    if let Some(target) = queue.pop_front() {
+                        // pkg, work_dir
                         pool.spawn(async move {
-                            info!("Checking {:?}", pkg);
-                            let findings =
-                                fsck::check_pkg(&pkg, work_dir, check.discover_sigs).await;
-                            (pkg, findings)
+                            info!("Checking {:?}", target.display());
+                            let findings = fsck::check_pkg(&target, check.discover_sigs).await;
+                            (target, findings)
                         });
                     } else {
                         // no more tasks to schedule
@@ -89,17 +77,17 @@ async fn main() -> Result<()> {
                 }
 
                 if let Some(join) = pool.join_next().await {
-                    let (pkg, findings) = join.context("Failed to join task")?;
+                    let (target, findings) = join.context("Failed to join task")?;
                     match findings {
                         Ok(findings) => {
-                            let has_findings = Finding::audit_list(&pkg, &findings, &filters);
+                            let has_findings = Finding::audit_list(&target, &findings, &filters);
 
                             if check.report && has_findings {
-                                println!("{}", pkg);
+                                println!("{}", target.display());
                             }
                         }
                         Err(err) => {
-                            error!("Failed to check package: {:?} => {:#}", pkg, err);
+                            error!("Failed to check package: {:?} => {:#}", target, err);
                         }
                     }
                 } else {
