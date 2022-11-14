@@ -10,21 +10,33 @@ cd archlinux-inputs-fsck
 git clone --depth=1 https://github.com/archlinux/svntogit-packages
 git clone --depth=1 https://github.com/archlinux/svntogit-community
 # Scan [core], [extra] and [community] for issues
-cargo run --release -- check --all -W ./svntogit-packages/ -W ./svntogit-community/
+cargo run --release -- check -W ./svntogit-packages/ -W ./svntogit-community/
 ```
+
+## Testing AUR packages
+
+You can also test a specific package by providing the path that contains the PKGBUILD:
+
+```sh
+git clone --depth=1 https://aur.archlinux.org/paru.git
+cd paru
+cargo run --release -- check .
+```
+
+Please keep in mind archlinux-inputs-fsck executes the PKGBUILD when loading it, only run this on PKGBUILDs you've reviewed/trust.
 
 ## Generate TODO lists for specific issues
 
 Use `-qq` to disable log output (except errors), `-r` to print package names to stdout, `-f git-commit-insecure-pin` to filter for a specific issue.
 
 ```sh
-cargo run --release -- check --all -W ./svntogit-packages -W ./svntogit-community -qqrf git-commit-insecure-pin
+cargo run --release -- check -W ./svntogit-packages -W ./svntogit-community -qqrf git-commit-insecure-pin
 ```
 
 You can use `-f` multiple times, to get a human readable report for specific issues do this:
 
 ```sh
-cargo run --release -- check --all -W ./svntogit-packages -W ./svntogit-community -q -f git-commit-insecure-pin -f svn-insecure-pin
+cargo run --release -- check -W ./svntogit-packages -W ./svntogit-community -q -f git-commit-insecure-pin -f svn-insecure-pin
 ```
 
 To get a list of all supported issue types do this:
