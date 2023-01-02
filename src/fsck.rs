@@ -131,7 +131,7 @@ pub enum Finding {
     BzrInsecurePin(BzrSource),
     UrlArtifactInsecurePin(UrlSource),
     SecurityAdvisory {
-        source: osv::Source,
+        source: PathBuf,
         packages: osv::Packages,
     },
 }
@@ -201,7 +201,7 @@ impl fmt::Display for Finding {
                     "Security advisory exists in dependency {:?} {:?} referenced by checked out source code at {:?}: ",
                     packages.package.name,
                     packages.package.version.as_deref().unwrap_or("-"),
-                    source.path,
+                    source,
                 )?;
                 let mut first = true;
                 for groups in &packages.groups {
@@ -236,7 +236,7 @@ pub async fn check_pkg(target: &Target, discover_sigs: bool) -> Result<Vec<Findi
             let tmp = tempfile::Builder::new()
                 .prefix("archlinux-inputs-fsck")
                 .tempdir()?;
-            let path = asp::checkout_package(&tmp.path(), pkg).await?;
+            let path = asp::checkout_package(tmp.path(), pkg).await?;
             (Some(tmp), path)
         }
         Target::BuildPath(path) => (None, PathBuf::from(path)),

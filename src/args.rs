@@ -56,7 +56,7 @@ pub struct Check {
     /// Print package names with findings to stdout
     #[arg(short, long)]
     pub report: bool,
-    #[arg(short='j', long)]
+    #[arg(short = 'j', long)]
     pub concurrency: Option<usize>,
 }
 
@@ -151,7 +151,7 @@ pub trait Scan {
 impl Scan for Check {
     async fn scan(target: &Target, check: &Check) -> Result<Vec<Finding>> {
         info!("Checking {:?}", target.display());
-        let findings = fsck::check_pkg(&target, check.discover_sigs).await?;
+        let findings = fsck::check_pkg(target, check.discover_sigs).await?;
         Ok(findings)
     }
 }
@@ -166,11 +166,14 @@ impl Scan for Vulns {
                 let tmp = tempfile::Builder::new()
                     .prefix("archlinux-inputs-fsck")
                     .tempdir()?;
-                let path = asp::checkout_package(&tmp.path(), pkg).await?;
+                let path = asp::checkout_package(tmp.path(), pkg).await?;
                 (Some(tmp), path)
             }
             Target::BuildPath(path) => (None, PathBuf::from(path)),
         };
+
+        let resolved_working_dir = fs::canonicalize(&path)
+            .with_context(|| anyhow!("Failed to resolve path to a canonical path: {:?}", path))?;
 
         let pkgbuild_path = path.join("PKGBUILD");
         if !pkgbuild_path.exists() {
@@ -178,7 +181,7 @@ impl Scan for Vulns {
         }
 
         let mut child = Command::new("makepkg")
-            .args(&["--nodeps", "--skippgpcheck", "--nobuild"])
+            .args(["--nodeps", "--skippgpcheck", "--nobuild"])
             .current_dir(&path)
             .stdout(Stdio::null())
             .stderr(Stdio::null())
@@ -186,6 +189,9 @@ impl Scan for Vulns {
             .context("Failed to spawn makepkg")?;
 
         let status = child.wait().await?;
+        if !status.success() {
+            bail!("Child process makepkg exited with {:?}", status);
+        }
 
         let child = Command::new("osv-scanner")
             .arg("--json")
@@ -203,8 +209,10 @@ impl Scan for Vulns {
         if let Some(results) = output.results {
             for result in results {
                 for packages in result.packages {
+                    let source = Path::new(&result.source.path);
+                    let source = source.strip_prefix(&resolved_working_dir).unwrap_or(source);
                     findings.push(Finding::SecurityAdvisory {
-                        source: result.source.clone(),
+                        source: source.to_owned(),
                         packages,
                     });
                 }
