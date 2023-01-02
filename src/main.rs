@@ -19,7 +19,7 @@ async fn main() -> Result<()> {
 
     match args.subcommand {
         SubCommand::Check(check) => check.run(&check).await?,
-        SubCommand::Vulns(vulns) => vulns.check.run(&vulns.check).await?,
+        SubCommand::Vulns(vulns) => vulns.run(&vulns.check).await?,
         SubCommand::SupportedIssues => {
             for issue in Finding::VARIANTS {
                 println!("{}", issue);
