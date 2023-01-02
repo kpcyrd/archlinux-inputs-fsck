@@ -60,8 +60,11 @@ pub struct Check {
     pub concurrency: Option<usize>,
 }
 
-#[derive(Debug, Parser)]
+#[derive(Debug, Clone, Parser)]
 pub struct Vulns {
+    /// Run prepare step from PKGBUILD
+    #[arg(long)]
+    pub prepare: bool,
     #[clap(flatten)]
     pub check: Check,
 }
@@ -84,10 +87,13 @@ fn read_pkgs_from_dir(out: &mut VecDeque<Target>, path: &Path) -> Result<()> {
 }
 
 #[async_trait]
-pub trait Scan {
-    async fn scan(target: &Target, check: &Check) -> Result<Vec<Finding>>;
+pub trait Scan: Send + Clone
+where
+    Self: 'static,
+{
+    async fn scan(&self, target: &Target) -> Result<Vec<Finding>>;
 
-    async fn run(mut check: Check) -> Result<()> {
+    async fn run(&self, check: &Check) -> Result<()> {
         let mut queue = VecDeque::new();
 
         for dir in &check.scan_directory {
@@ -103,7 +109,7 @@ pub trait Scan {
             queue.push_back(Target::BuildPath(path.clone()));
         }
 
-        let filters = HashSet::<String>::from_iter(check.filters.drain(..));
+        let filters = HashSet::<String>::from_iter(check.filters.iter().cloned());
 
         let mut pool = JoinSet::new();
 
@@ -112,9 +118,9 @@ pub trait Scan {
             while pool.len() < concurrency {
                 if let Some(target) = queue.pop_front() {
                     // pkg, work_dir
-                    let check = check.clone();
+                    let check = self.clone();
                     pool.spawn(async move {
-                        let findings = Self::scan(&target, &check).await;
+                        let findings = check.scan(&target).await;
                         (target, findings)
                     });
                 } else {
@@ -149,16 +155,16 @@ pub trait Scan {
 
 #[async_trait]
 impl Scan for Check {
-    async fn scan(target: &Target, check: &Check) -> Result<Vec<Finding>> {
+    async fn scan(&self, target: &Target) -> Result<Vec<Finding>> {
         info!("Checking {:?}", target.display());
-        let findings = fsck::check_pkg(target, check.discover_sigs).await?;
+        let findings = fsck::check_pkg(target, self.discover_sigs).await?;
         Ok(findings)
     }
 }
 
 #[async_trait]
 impl Scan for Vulns {
-    async fn scan(target: &Target, _check: &Check) -> Result<Vec<Finding>> {
+    async fn scan(&self, target: &Target) -> Result<Vec<Finding>> {
         info!("Scanning {:?}", target.display());
 
         let (_temp_dir, path) = match &target {
@@ -180,8 +186,14 @@ impl Scan for Vulns {
             bail!("Missing PKGBUILD: {:?}", pkgbuild_path);
         }
 
+        let makepkg_args = if self.prepare {
+            vec!["--skippgpcheck", "--nobuild"]
+        } else {
+            vec!["--nodeps", "--noprepare", "--skippgpcheck", "--nobuild"]
+        };
+
         let mut child = Command::new("makepkg")
-            .args(["--nodeps", "--skippgpcheck", "--nobuild"])
+            .args(&makepkg_args)
             .current_dir(&path)
             .stdout(Stdio::null())
             .stderr(Stdio::null())

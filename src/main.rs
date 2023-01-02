@@ -1,4 +1,4 @@
-use archlinux_inputs_fsck::args::{Args, Check, Scan, SubCommand, Vulns};
+use archlinux_inputs_fsck::args::{Args, Scan, SubCommand};
 use archlinux_inputs_fsck::errors::*;
 use archlinux_inputs_fsck::fsck::Finding;
 use clap::Parser;
@@ -18,8 +18,8 @@ async fn main() -> Result<()> {
     env_logger::init_from_env(Env::default().default_filter_or(log_level));
 
     match args.subcommand {
-        SubCommand::Check(check) => Check::run(check).await?,
-        SubCommand::Vulns(vulns) => Vulns::run(vulns.check).await?,
+        SubCommand::Check(check) => check.run(&check).await?,
+        SubCommand::Vulns(vulns) => vulns.check.run(&vulns.check).await?,
         SubCommand::SupportedIssues => {
             for issue in Finding::VARIANTS {
                 println!("{}", issue);
