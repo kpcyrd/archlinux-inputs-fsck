@@ -56,6 +56,8 @@ pub struct Check {
     /// Print package names with findings to stdout
     #[arg(short, long)]
     pub report: bool,
+    #[arg(short='j', long)]
+    pub concurrency: Option<usize>,
 }
 
 #[derive(Debug, Parser)]
@@ -105,7 +107,7 @@ pub trait Scan {
 
         let mut pool = JoinSet::new();
 
-        let concurrency = num_cpus::get() * 2;
+        let concurrency = check.concurrency.unwrap_or_else(|| num_cpus::get() * 2);
         loop {
             while pool.len() < concurrency {
                 if let Some(target) = queue.pop_front() {
@@ -176,8 +178,9 @@ impl Scan for Vulns {
         }
 
         let mut child = Command::new("makepkg")
-            .args(&["--nodeps", "--nobuild"])
+            .args(&["--nodeps", "--skippgpcheck", "--nobuild"])
             .current_dir(&path)
+            .stdout(Stdio::null())
             .spawn()
             .context("Failed to spawn makepkg")?;
 
