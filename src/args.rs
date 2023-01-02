@@ -196,7 +196,7 @@ impl Scan for Vulns {
         let child = Command::new("osv-scanner")
             .arg("--json")
             .arg("-r")
-            .arg(&path)
+            .arg(&resolved_working_dir)
             .stdout(Stdio::piped())
             .stderr(Stdio::null())
             .spawn()
