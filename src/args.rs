@@ -181,17 +181,18 @@ impl Scan for Vulns {
             .args(&["--nodeps", "--skippgpcheck", "--nobuild"])
             .current_dir(&path)
             .stdout(Stdio::null())
+            .stderr(Stdio::null())
             .spawn()
             .context("Failed to spawn makepkg")?;
 
         let status = child.wait().await?;
-        println!("child process exited with status: {}", status);
 
         let child = Command::new("osv-scanner")
             .arg("--json")
             .arg("-r")
             .arg(&path)
             .stdout(Stdio::piped())
+            .stderr(Stdio::null())
             .spawn()
             .context("Failed to spawn osv-scanner")?;
 
