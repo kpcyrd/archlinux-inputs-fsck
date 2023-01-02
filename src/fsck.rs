@@ -6,6 +6,7 @@ use crate::github;
 use crate::hg::HgSource;
 use crate::makepkg;
 use crate::makepkg::Source;
+use crate::osv;
 use crate::svn::SvnSource;
 use std::borrow::Cow;
 use std::collections::HashSet;
@@ -129,6 +130,10 @@ pub enum Finding {
     HgRevisionInsecurePin(HgSource),
     BzrInsecurePin(BzrSource),
     UrlArtifactInsecurePin(UrlSource),
+    SecurityAdvisory {
+        source: osv::Source,
+        packages: osv::Packages,
+    },
 }
 
 impl Finding {
@@ -189,6 +194,29 @@ impl fmt::Display for Finding {
                     "Url artifact is not securely pinned by checksums: {:?}",
                     source
                 )
+            }
+            Finding::SecurityAdvisory { source, packages } => {
+                write!(
+                    w,
+                    "Security advisory exists in dependency {:?} {:?} referenced by checked out source code at {:?}: ",
+                    packages.package.name,
+                    packages.package.version.as_deref().unwrap_or("-"),
+                    source.path,
+                )?;
+                let mut first = true;
+                for groups in &packages.groups {
+                    for group in groups {
+                        for id in &group.ids {
+                            if first {
+                                first = false;
+                            } else {
+                                write!(w, ", ")?;
+                            }
+                            write!(w, "https://osv.dev/vulnerability/{}", id)?;
+                        }
+                    }
+                }
+                Ok(())
             }
         }
     }
