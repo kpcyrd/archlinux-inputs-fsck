@@ -65,6 +65,9 @@ pub struct Vulns {
     /// Run prepare step from PKGBUILD
     #[arg(long)]
     pub prepare: bool,
+    /// Delete untracked files after checking out the source code
+    #[arg(long)]
+    pub clean_after: bool,
     #[clap(flatten)]
     pub check: Check,
 }
@@ -228,6 +231,23 @@ impl Scan for Vulns {
                         packages,
                     });
                 }
+            }
+        }
+
+        if self.clean_after {
+            debug!("Running cleanup...");
+
+            let status = Command::new("git")
+                .args(["clean", "-qdfx", "."])
+                .current_dir(&path)
+                .spawn()
+                .context("Failed to spawn git")?
+                .wait()
+                .await
+                .context("Failed to wait for git child")?;
+
+            if !status.success() {
+                bail!("Child process `git clean` exited with {:?}", status);
             }
         }
 
